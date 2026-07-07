@@ -1,0 +1,77 @@
+---
+title: "Data Summary"
+author: "Elsa"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+1. Load data
+```{r}
+load("data/data.Rdata")
+```
+
+```{r}
+read_counts_row <- read_counts %>% 
+  column_to_rownames(., "genome") %>% 
+  colSums() %>% 
+  as.data.frame() %>% 
+  rename(seq=".") %>% 
+  arrange(seq)
+```
+
+Number of fecal samples
+```{r}
+samples <- sample_metadata %>% 
+  filter(sample_type == "Faecal") %>% 
+  nrow() %>% 
+  cat()
+```
+
+Number of MAGs
+```{r}
+nmags <- nrow(read_counts) %>%  # establish number of MAGs for analysis
+  cat() 
+```
+
+
+Amount of host data (GB) - as mapped against the Calotriton arnoldi reference genome. the closest living relative to Calotriton asper with a complete reference genome
+```{r}
+host_GB <- sum(sample_metadata$host_data_GB)  %>% 
+  cat()
+
+metagenomic_GB <- sum(sample_metadata$metagenomic_data_GB)
+```
+Amount of metagenomic data (GB)
+```{r}
+metagenomic_GB <- sum(sample_metadata$metagenomic_data_GB) %>% 
+  cat()
+```
+MAG Statistics
+
+Number of new species (MAGs lacking species-level annotation)
+```{r}
+nonspecies <- genome_metadata %>%
+    filter(species == "") %>%
+    nrow()
+cat(nonspecies)
+```
+
+Percentage of MAGs in catalogue lacking species-level annotation
+```{r}
+perct <- nonspecies*100/nmags
+cat(perct)
+```
+
+Number of phyla represented in MAG catalogue
+```{r}
+nphyla <- genome_metadata %>%
+  select(phylum) %>%
+  unique() %>%
+  pull() %>%
+    length()
+cat(nphyla)
+```

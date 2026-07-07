@@ -1,0 +1,480 @@
+---
+title: "Community Composition"
+author: "Elsa"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Community composition
+
+```{r load_data_community}
+load("data/data.Rdata")
+```
+
+## Taxonomy overview 
+change "VARIABLE" in order to compare groups of samples; i.e. experimental groups temperatures, etc... 
+In this skeleton draft, the two options for VARIABLE are "A" and "B"
+
+```{r}
+genome_counts_filt %>%
+  mutate_at(vars(-genome),~./sum(.)) %>% 
+  pivot_longer(-genome, names_to = "sample", values_to = "count") %>% 
+  left_join(., genome_metadata, by = join_by(genome == genome)) %>% 
+  left_join(sample_metadata, by = join_by(sample == DNA_datasets)) %>%
+  filter(count > 0) %>% 
+  ggplot(., aes(x=sample,y=count, fill=phylum, group=phylum)) + 
+    geom_bar(stat="identity", colour="white", linewidth=0.1) + 
+    scale_fill_manual(values=phylum_colors) +
+    facet_grid(~ water_temp, scale="free", space="free")+
+    guides(fill = guide_legend(ncol = 1)) +
+    theme(
+          axis.title.x = element_blank(),
+          panel.background = element_blank(),
+          panel.border = element_blank(),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          strip.background = element_rect(fill = "white"),
+    strip.text = element_text(size = 8, lineheight = 0.6),
+    strip.placement = "outside",
+    axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+          axis.line = element_line(linewidth = 0.5, linetype = "solid", colour = "black")) +
+   labs(fill="Phylum",y = "Relative abundance",x="samples")
+```
+
+```{r phyla, comment="", message=FALSE, warning=FALSE}
+genome_metadata %>% 
+  filter(domain == "Archaea")%>%
+  dplyr::select(phylum) %>%
+  unique() %>%
+  pull() %>%
+  length() %>% 
+  cat()
+```
+### Genus and species annotation
+
+**Number of MAGs without species-level annotation**
+```{r nonspe, comment="", message=FALSE, warning=FALSE}
+genome_metadata %>%
+  filter(species == "") %>%
+  summarize(Mag_nospecies = n())%>%
+  select(Mag_nospecies) %>% 
+  pull() %>% 
+  cat()
+```
+```{r nonspe_phylum, comment="", message=FALSE, warning=FALSE}
+total_mag_phylum <- genome_metadata %>%
+  group_by(phylum) %>%
+  summarize(count_total = n())
+genome_metadata %>%
+  filter(species == "") %>%
+  group_by(phylum) %>%
+  summarize(count_nospecies = n()) %>% 
+  left_join(total_mag_phylum, by = join_by(phylum == phylum)) %>% 
+  mutate(percentage_nosp=100*count_nospecies/count_total) %>% 
+  arrange(percentage_nosp) %>% 
+  tt()
+```
+
+**Percentage of MAGs without species-level annotation**
+```{r sp_percet, comment="", message=FALSE, warning=FALSE}
+nmags <- nrow(genome_metadata)
+nonspecies <- genome_metadata %>%
+    filter(species == "") %>%
+    nrow()
+perct <- nonspecies*100/nmags
+perct %>% 
+  cat()
+```
+
+**Number of MAGs without genera-level annotation**
+```{r nongenera, comment="", message=FALSE, warning=FALSE}
+nongenera <- genome_metadata %>%
+    filter(genus == "") %>%
+    nrow()
+cat(nongenera)
+```
+
+**Percentage of MAGs without genera-level annotation**
+```{r gen_percet, comment="", message=FALSE, warning=FALSE}
+perct_g <- nongenera*100/nmags
+perct_g %>% 
+  cat()
+```
+#### Phylum Relative abundances
+```{r}
+phylum_summary <- genome_counts_filt %>%
+  mutate_at(vars(-genome), ~ . / sum(.)) %>% 
+  pivot_longer(-genome, names_to = "sample", values_to = "count") %>%
+  left_join(sample_metadata, by = join_by(sample == DNA_datasets)) %>%
+  left_join(genome_metadata, by = join_by(genome == genome)) %>%
+  group_by(sample, phylum, water_temp) %>%
+  summarise(relabun = sum(count), .groups = "drop")
+```
+## Alpha diversity
+```{r alpha_div, comment="", message=FALSE, warning=FALSE, eval=FALSE}
+richness <- genome_counts_filt %>%
+  column_to_rownames(var = "genome") %>%
+  dplyr::select(where(~ !all(. == 0))) %>%
+  hilldiv(q = 0) %>%
+  as.data.frame() %>%
+  dplyr::rename(richness = value)
+
+neutral <- genome_counts_filt %>%
+  column_to_rownames(var = "genome") %>%
+  dplyr::select(where(~ !all(. == 0))) %>%
+  hilldiv(q = 1) %>%
+  as.data.frame() %>%
+  dplyr::rename(neutral = value)
+
+phylogenetic <- genome_counts_filt %>%
+  filter(genome %in% genome_metadata_bacteria$genome) %>% 
+  column_to_rownames(var = "genome") %>%
+  dplyr::select(where(~ !all(. == 0))) %>%
+  hilldiv(q = 1, tree = genome_tree) %>%
+  as.data.frame() %>%
+  dplyr::rename(phylogenetic = value)
+
+alpha_div <- richness %>%
+  dplyr::select(sample, richness) %>%
+  full_join(neutral %>% dplyr::select(sample, neutral), by = join_by(sample == sample)) %>%
+  full_join(phylogenetic %>% dplyr::select(sample, phylogenetic), by = join_by(sample == sample))
+```
+
+```{r save_alpha, eval=FALSE}
+save(alpha_div, file="data/alpha_all.RData")
+```
+
+```{r}
+alpha_div %>%
+  pivot_longer(-sample, names_to = "alpha", values_to = "value") %>%
+  left_join(sample_metadata, by = join_by(sample == DNA_datasets)) %>%
+  group_by(alpha) %>%
+  summarise(
+    total_mean = mean(value, na.rm = T),
+    total_sd = sd(value, na.rm = T),
+    cold_mean = mean(value[water_temp == "10"], na.rm = T),
+    cold_sd = sd(value[water_temp == "10"], na.rm = T),
+    hot_mean = mean(value[water_temp == "20"], na.rm = T),
+    hot_sd = sd(value[water_temp == "20"], na.rm = T),
+  ) %>%
+  mutate(
+    Total = str_c(round(total_mean, 3), "±", round(total_sd, 3)),
+    "Cold" = str_c(round(cold_mean, 3), "±", round(cold_sd, 3)),
+    "Hot" = str_c(round(hot_mean, 3), "±", round(hot_sd, 3)),
+  ) %>%
+  arrange(-hot_mean) %>%
+  dplyr::select(alpha, Total, "Cold", "Hot") %>%
+  rename(Alpha=alpha) %>% 
+  tt()
+```
+```{r}
+alpha_div %>%
+  pivot_longer(-sample, names_to = "metric", values_to = "value") %>%
+  left_join(sample_metadata, by = join_by(sample == DNA_datasets)) %>%
+  mutate(water_temp = factor(water_temp, levels = c(10, 20))) %>%
+  ggplot(aes(
+    y = value,
+    x = water_temp,
+    group = water_temp,
+    color = water_temp,
+    fill = water_temp
+  )) +
+  geom_boxplot(alpha = 0.5, outlier.shape = NA) +
+  geom_jitter(width = 0.2, alpha = 0.5) +
+  facet_wrap(
+    ~ factor(
+      metric,
+      levels = c("richness", "neutral", "phylogenetic"),
+      labels = c("Richness", "Neutral", "Phylogenetic")
+    ),
+    scales = "free",
+    ncol = 5
+  ) +
+  theme_classic()
+```
+
+```{r}
+alpha_div %>%
+  pivot_longer(-sample, names_to = "metric", values_to = "value") %>%
+  mutate(metric=factor(metric,levels=c("richness","neutral","phylogenetic"))) %>%
+  left_join(sample_metadata, by = join_by(sample == DNA_datasets)) %>%
+  group_by(metric) %>%
+  wilcox_test(value ~ water_temp) %>% 
+  adjust_pvalue(method = "BH") %>%
+  filter(p.adj < 0.05) %>% 
+  tt()
+```
+
+# Beta Div
+
+```{r}
+beta_q0n <- genome_counts_filt %>%
+  column_to_rownames(., "genome") %>%
+  filter(rowSums(. != 0, na.rm = TRUE) > 0) %>%
+  select_if(~!all(. == 0)) %>%
+  hillpair(., q = 0)
+
+beta_q1n <- genome_counts_filt %>%
+  column_to_rownames(., "genome") %>%
+  filter(rowSums(. != 0, na.rm = TRUE) > 0) %>%
+  select_if(~!all(. == 0)) %>%
+  hillpair(., q = 1)
+
+ beta_q1p <- genome_counts_filt %>%
+   filter(genome %in% genome_metadata_bacteria$genome) %>% 
+   column_to_rownames(., "genome") %>%
+   filter(rowSums(. != 0, na.rm = TRUE) > 0) %>%
+   select_if(~!all(. == 0)) %>%
+   hillpair(., q = 1, tree = genome_tree)
+
+save(beta_q0n, 
+     beta_q1n, 
+     beta_q1p, 
+     file = "data/beta.Rdata")
+```
+
+```{r}
+load("data/beta.Rdata")
+
+# set water temp as factor, not number
+sample_metadata_beta <- sample_metadata %>%
+  mutate(water_temp = factor(water_temp, levels = c(10, 20)))
+```
+
+```{r}
+# richness 
+beta_q0n_mat <- as.matrix(beta_q0n$q0S)
+
+beta_q0n_filtered <- beta_q0n_mat[
+  rownames(beta_q0n_mat) %in% sample_metadata_beta$DNA_datasets,
+  colnames(beta_q0n_mat) %in% sample_metadata_beta$DNA_datasets
+]
+
+beta_q0n_dis <- as.dist(beta_q0n_filtered)
+
+sample_metadata_q0n <- sample_metadata_beta %>%
+  filter(DNA_datasets %in% labels(beta_q0n_dis)) %>%
+  arrange(match(DNA_datasets, labels(beta_q0n_dis))) %>%
+  column_to_rownames("DNA_datasets")
+
+all(rownames(sample_metadata_q0n) == labels(beta_q0n_dis))
+
+betadisper(beta_q0n_dis, sample_metadata_q0n$water_temp) %>%
+  permutest(pairwise = TRUE)
+
+adonis2(
+  beta_q0n_dis ~ water_temp,
+  data = sample_metadata_q0n,
+  permutations = 999
+) %>%
+  broom::tidy() %>%
+  tt()
+```
+```{r}
+# Neutral beta diversity, q = 1
+
+beta_q1n_mat <- as.matrix(beta_q1n$q1S)
+
+beta_q1n_filtered <- beta_q1n_mat[
+  rownames(beta_q1n_mat) %in% sample_metadata_beta$DNA_datasets,
+  colnames(beta_q1n_mat) %in% sample_metadata_beta$DNA_datasets
+]
+
+beta_q1n_dis <- as.dist(beta_q1n_filtered)
+
+sample_metadata_q1n <- sample_metadata_beta %>%
+  filter(DNA_datasets %in% labels(beta_q1n_dis)) %>%
+  arrange(match(DNA_datasets, labels(beta_q1n_dis))) %>%
+  column_to_rownames("DNA_datasets")
+
+all(rownames(sample_metadata_q1n) == labels(beta_q1n_dis))
+
+betadisper(beta_q1n_dis, sample_metadata_q1n$water_temp) %>%
+  permutest(pairwise = TRUE)
+
+adonis2(
+  beta_q1n_dis ~ water_temp,
+  data = sample_metadata_q1n,
+  permutations = 999
+) %>%
+  broom::tidy() %>%
+  tt()
+```
+
+```{r}
+# Phylogenetic beta diversity, q = 1
+
+beta_q1p_mat <- as.matrix(beta_q1p$q1S)
+
+beta_q1p_filtered <- beta_q1p_mat[
+  rownames(beta_q1p_mat) %in% sample_metadata_beta$DNA_datasets,
+  colnames(beta_q1p_mat) %in% sample_metadata_beta$DNA_datasets
+]
+
+beta_q1p_dis <- as.dist(beta_q1p_filtered)
+
+sample_metadata_q1p <- sample_metadata_beta %>%
+  filter(DNA_datasets %in% labels(beta_q1p_dis)) %>%
+  arrange(match(DNA_datasets, labels(beta_q1p_dis))) %>%
+  column_to_rownames("DNA_datasets")
+
+all(rownames(sample_metadata_q1p) == labels(beta_q1p_dis))
+
+betadisper(beta_q1p_dis, sample_metadata_q1p$water_temp) %>%
+  permutest(pairwise = TRUE)
+
+adonis2(
+  beta_q1p_dis ~ water_temp,
+  data = sample_metadata_q1p,
+  permutations = 999
+) %>%
+  broom::tidy() %>%
+  tt()
+```
+```{r}
+nmds_beta <- beta_q1n_dis %>%
+  vegan::metaMDS(trymax = 500, k = 2, trace = 0) %>%
+  vegan::scores() %>%
+  as_tibble(rownames = "sample") %>%
+  left_join(sample_metadata_beta, by = join_by(sample == DNA_datasets)) %>%
+  group_by(water_temp) %>%
+  mutate(
+    x_cen = mean(NMDS1, na.rm = TRUE),
+    y_cen = mean(NMDS2, na.rm = TRUE)
+  ) %>%
+  ungroup()
+```
+
+```{r}
+nmds_beta %>%
+  ggplot(aes(x = NMDS1, y = NMDS2, color = water_temp)) +
+  geom_point(size = 3, alpha = 0.6) +
+  geom_segment(
+    aes(x = x_cen, y = y_cen, xend = NMDS1, yend = NMDS2),
+    alpha = 0.4,
+    show.legend = FALSE
+  ) +
+  scale_color_manual(
+    name = "Water Temp",
+    values = type_colors
+  ) +
+  theme_classic()
+```
+# Relative abundance
+```{r}
+# set water temp as a factor, not a number, within physeq
+sample_data(physeq_genome)$water_temp <- factor(
+  sample_data(physeq_genome)$water_temp,
+  levels = c(10, 20)
+)
+```
+
+```{r}
+fit_mag_water_temp <- ancombc2(
+  data = physeq_genome,
+  fix_formula = "water_temp",
+  group = "water_temp",
+  global = FALSE,
+  pairwise = FALSE,
+  p_adj_method = "BH",
+  lib_cut = 0,
+  struc_zero = TRUE,
+  alpha = 0.05
+)
+
+mag_water_temp <- fit_mag_water_temp$res
+
+save(
+  fit_mag_water_temp,
+  mag_water_temp,
+  file = "data/ancombc.Rdata"
+)
+```
+```{r}
+mag_enriched_20 <- mag_water_temp %>%
+  filter(q_water_temp20 < 0.05) %>%
+  filter(lfc_water_temp20 > 0) %>%
+  arrange(desc(lfc_water_temp20))
+
+mag_enriched_20 %>%
+  nrow() %>%
+  cat()
+
+mag_enriched_20 %>%
+  tt()
+```
+```{r}
+mag_enriched_10 <- mag_water_temp %>%
+  filter(q_water_temp20 < 0.05) %>%
+  filter(lfc_water_temp20 < 0) %>%
+  arrange(lfc_water_temp20)
+
+mag_enriched_10 %>%
+  nrow() %>%
+  cat()
+
+mag_enriched_10 %>%
+  tt()
+```
+
+```{r}
+## Plotting
+taxonomy <- genome_metadata %>%
+  distinct(genome, phylum) %>%
+  rename(taxon = genome)
+
+colors_alphabetic <- read_tsv("https://raw.githubusercontent.com/earthhologenome/EHI_taxonomy_colour/main/ehi_phylum_colors.tsv") %>%
+  mutate(phylum = str_replace(phylum, "[dpcofgs]__", "")) %>%
+  right_join(taxonomy %>% distinct(phylum), by = "phylum") %>%
+  select(phylum, colors) %>%
+  mutate(colors = str_c(colors, "80")) %>%
+  distinct() %>%
+  arrange(phylum)
+```
+
+```{r}
+plot_data <- mag_water_temp %>%
+  filter(q_water_temp20 < 0.05) %>%
+  mutate(
+    logFC = lfc_water_temp20,
+    enriched = case_when(
+      logFC > 0 ~ "20C",
+      logFC < 0 ~ "10C",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  left_join(genome_metadata, by = join_by(taxon == genome))
+```
+```{r}
+tax_color <- plot_data %>%
+  distinct(phylum) %>%
+  left_join(colors_alphabetic, by = "phylum") %>%
+  arrange(phylum) %>%
+  pull(colors, name = phylum)
+```
+```{r}
+ggplot(plot_data, aes(x = reorder(taxon, logFC), y = logFC, fill = phylum)) +
+  geom_col() +
+  scale_fill_manual(values = tax_color, na.value = "grey70") +
+  coord_flip() +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 6),
+    axis.title = element_text(size = 14, face = "bold"),
+    legend.text = element_text(size = 12),
+    legend.title = element_text(size = 14, face = "bold"),
+    legend.position = "right",
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5)
+  ) +
+  labs(
+    title = "Enriched in 10C (- LFC) vs enriched in 20C (+ LFC)",
+    x = "MAGs",
+    y = "Log-Fold Change",
+    fill = "Phylum"
+  )
+```
