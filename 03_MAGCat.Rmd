@@ -243,7 +243,7 @@ function_tree
 
 PCoA functional ordination with PCA loadings.
 
-```{r function_ordination_pcoa, message=FALSE, fig.height=8, fig.width=10, fig.fullwidth=TRUE}
+```{r function_ordination_pcoa, fig.fullwidth=TRUE, fig.height=8, fig.width=10, message=FALSE}
 gift_pcoa <- genome_gifts %>%
     to.elements(., GIFT_db) %>%
     as.data.frame() %>%

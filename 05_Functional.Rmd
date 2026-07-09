@@ -94,7 +94,7 @@ function_matrix <- GIFTs_functions_community %>%
 
 metadata <- sample_metadata %>%
   select(DNA_datasets, water_temp) %>%
-  mutate(water_temp = factor(water_temp, levels = c(10, 20))) %>%
+  mutate(water_temp = factor(water_temp, levels = c(10, 15, 20))) %>%
   column_to_rownames("DNA_datasets")
 
 metadata <- metadata[rownames(function_matrix), , drop = FALSE]
@@ -117,7 +117,7 @@ element_gift <- GIFTs_elements_community %>%
   left_join(
     sample_metadata %>%
       select(DNA_datasets, water_temp) %>%
-      mutate(water_temp = factor(water_temp, levels = c(10, 20))),
+      mutate(water_temp = factor(water_temp, levels = c(10, 15, 20))),
     by = join_by(sample == DNA_datasets)
   )
 ```
@@ -136,9 +136,8 @@ significant_elements <- element_gift %>%
   ) %>%
   group_by(trait) %>%
   summarise(
-    p_value = wilcox.test(value ~ water_temp)$p.value,
-    .groups = "drop"
-  ) %>%
+    p_value = kruskal.test(value ~ water_temp)$p.value,
+    .groups = "drop") %>%
   mutate(p_adjust = p.adjust(p_value, method = "BH")) %>%
   filter(p_adjust < 0.05)
 ```

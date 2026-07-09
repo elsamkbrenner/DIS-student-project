@@ -242,7 +242,7 @@ load("data/beta.Rdata")
 
 # set water temp as factor, not number
 sample_metadata_beta <- sample_metadata %>%
-  mutate(water_temp = factor(water_temp, levels = c(10, 20)))
+  mutate(water_temp = factor(water_temp, levels = c(10, 15, 20)))
 ```
 
 ```{r}
@@ -357,11 +357,7 @@ nmds_beta %>%
     aes(x = x_cen, y = y_cen, xend = NMDS1, yend = NMDS2),
     alpha = 0.4,
     show.legend = FALSE
-  ) +
-  scale_color_manual(
-    name = "Water Temp",
-    values = type_colors
-  ) +
+  ) 
   theme_classic()
 ```
 # Relative abundance
@@ -369,7 +365,7 @@ nmds_beta %>%
 # set water temp as a factor, not a number, within physeq
 sample_data(physeq_genome)$water_temp <- factor(
   sample_data(physeq_genome)$water_temp,
-  levels = c(10, 20)
+  levels = c(10, 15, 20)
 )
 ```
 
