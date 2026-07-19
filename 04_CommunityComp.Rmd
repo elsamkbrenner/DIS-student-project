@@ -474,3 +474,179 @@ ggplot(plot_data, aes(x = reorder(taxon, logFC), y = logFC, fill = phylum)) +
     fill = "Phylum"
   )
 ```
+
+# Pre-Treatment Comparison (By Temp)
+```{r}
+pre_abx <- left_join(alpha_div,sample_metadata, by = c("sample" = "DNA_datasets"))
+pre_abx_filtered <- filter(pre_abx, sampling_date >= as.Date('2025-08-16') & sampling_date <= as.Date('2025-08-29')) 
+pre_abx_formatted <- pivot_longer(pre_abx_filtered, cols = c(richness, neutral, phylogenetic), names_to = 'alpha_div', values_to = 'alpha_div_values')
+pre_abx_formatted <- pre_abx_formatted %>%
+  mutate(treatment_status = 'Pre-ABX')
+  
+  ggplot(data=pre_abx_formatted, aes(
+    y = alpha_div_values,
+    x = experimental_group,
+    group = water_temp,
+    color = water_temp,
+    fill = water_temp
+    
+  )) +
+  geom_boxplot(alpha = 0.5, outlier.shape = NA) +
+  geom_jitter(width = 0.2, alpha = 0.5) +
+  facet_wrap(
+    ~ alpha_div,
+    scales = "free_y",
+    ncol = 3,
+    labeller = as_labeller(c(
+      richness = "Richness",
+      neutral = "Neutral",
+      phylogenetic = "Phylogenetic Diversity"
+    ))
+    
+  ) +
+  scale_x_discrete(
+    labels = c(
+    "LAHT_A" = "10C",
+    "LAHT_B" = "15C & 20C"
+  )) + 
+  labs(
+    title = "Pre-Treatment Alpha Diversity Across Temperatures",
+    x = "Temperature (C)",
+    y = "Alpha Diversity",
+  ) +
+  theme_classic()
+
+```
+
+#Pre-Treatment Comparison (By Temp) Stats
+```{r}
+
+```
+
+
+
+# Pre-Treatment Comparison (By Group) 
+```{r}
+pre_abx <- left_join(alpha_div,sample_metadata, by = c("sample" = "DNA_datasets"))
+pre_abx_filtered <- filter(pre_abx, sampling_date >= as.Date('2025-08-16') & sampling_date <= as.Date('2025-08-29')) 
+pre_abx_formatted <- pivot_longer(pre_abx_filtered, cols = c(richness, neutral, phylogenetic), names_to = 'alpha_div', values_to = 'alpha_div_values')
+pre_abx_formatted <- pre_abx_formatted %>%
+  mutate(treatment_status = 'Pre-ABX')
+  
+  ggplot(data=pre_abx_formatted, aes(
+    y = alpha_div_values,
+    x = experimental_group,
+    group = experimental_group,
+    color = experimental_group,
+    fill = experimental_group
+    
+  )) +
+  geom_boxplot(alpha = 0.5, outlier.shape = NA) +
+  geom_jitter(width = 0.2, alpha = 0.5) +
+  facet_wrap(
+    ~ alpha_div,
+    scales = "free_y",
+    ncol = 3,
+    labeller = as_labeller(c(
+      richness = "Richness",
+      neutral = "Neutral",
+      phylogenetic = "Phylogenetic Diversity"
+    ))
+    
+  ) +
+  scale_x_discrete(
+    labels = c(
+    "LAHT_A" = "10C",
+    "LAHT_B" = "15C & 20C"
+  )) + 
+  labs(
+    title = "Pre-Treatment Alpha Diversity Across Groups",
+    x = "Temperature (C)",
+    y = "Alpha Diversity",
+  ) +
+  theme_classic()
+```
+#Pre-Treatment Comparison (By Group) Stats
+```{r}
+
+```
+
+#Post-Treatment Comparison (Overall)
+```{r}
+post_abx <- left_join(alpha_div,sample_metadata, by = c("sample" = "DNA_datasets"))
+post_abx_filtered <- filter(post_abx, sampling_date >= as.Date('2025-08-30'))
+post_abx_formatted <- pivot_longer(post_abx_filtered, cols = c(richness, neutral, phylogenetic), names_to = 'alpha_div', values_to = 'alpha_div_values')
+post_abx_formatted <- post_abx_formatted %>%
+  mutate(treatment_status = 'Post-ABX')
+
+treatments_combined <- bind_rows(pre_abx_formatted, post_abx_formatted)
+
+ggplot(data=treatments_combined, aes(
+    y = alpha_div_values,
+    x = treatment_status,
+    group = treatment_status,
+    color = treatment_status,
+    fill = treatment_status
+    
+  )) +
+  geom_boxplot(alpha = 0.5, outlier.shape = NA) +
+  geom_jitter(width = 0.2, alpha = 0.5) +
+  facet_wrap(
+    ~ alpha_div,
+    scales = "free_y",
+    ncol = 3,
+    labeller = as_labeller(c(
+      richness = "Richness",
+      neutral = "Neutral",
+      phylogenetic = "Phylogenetic Diversity"
+    ))
+    
+  ) +
+  labs(
+    title = "Alpha Diversity Comparsion Pre and Post Antibiotic Treatment",
+    x = "Treatment Status",
+    y = "Alpha Diversity",
+  ) +
+  theme_classic()
+
+```
+
+#Post-Treatment Comparison (By Temp)
+```{r}
+post_abx <- left_join(alpha_div,sample_metadata, by = c("sample" = "DNA_datasets"))
+post_abx_filtered <- filter(post_abx, sampling_date >= as.Date('2025-08-30'))
+post_abx_formatted <- pivot_longer(post_abx_filtered, cols = c(richness, neutral, phylogenetic), names_to = 'alpha_div', values_to = 'alpha_div_values')
+post_abx_formatted <- post_abx_formatted %>%
+  mutate(treatment_status = 'Post-ABX')
+
+treatments_combined <- bind_rows(pre_abx_formatted, post_abx_formatted)
+
+ggplot(data=treatments_combined, aes(
+    y = alpha_div_values,
+    x = treatment_status,
+    color = experimental_group,
+    fill = experimental_group,
+    
+  )) +
+  geom_boxplot(alpha = 0.5, outlier.shape = NA, position = position_dodge(width = 0.8)) +
+  geom_jitter(position = position_jitterdodge(
+  jitter.width = 0.2,
+  dodge.width = 0.8
+  ), alpha = 0.5) +
+  facet_wrap(
+    ~ alpha_div,
+    scales = "free_y",
+    ncol = 3,
+    labeller = as_labeller(c(
+      richness = "Richness",
+      neutral = "Neutral",
+      phylogenetic = "Phylogenetic Diversity"
+    ))) + 
+    
+  labs(
+    title = "Alpha Diversity Comparsion Pre and Post Antibiotic Treatment",
+    x = "Treatment Status",
+    y = "Alpha Diversity",
+  ) +
+  theme_classic()
+```
