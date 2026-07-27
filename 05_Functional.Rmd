@@ -345,7 +345,7 @@ sample_amr_post <- genome_counts_filt %>%
 ```
 
 
-#Pre/Post Combined Comparison
+#Pre/Post Combined Comparison (Overall)
 ```{r}
 sample_amr_combined <- bind_rows(
   sample_amr_pre %>% mutate(experiment_phase = "pre-ABX"),
@@ -369,11 +369,28 @@ sample_amr_combined <- bind_rows(
    
    labs(y = "AMR")
 ```
+#Pre/Post Combined Comparison (By Temp)
 ```{r}
- sample_amr %>%
-   filter(experiment_phase %in% c("pre-ABX", "post-ABX")) %>% 
-   rstatix::wilcox_test(AMR ~ experiment_phase, p.adjust.method = "BH")%>% 
-   #filter(p < 0.05) %>% 
-   tt()
+sample_amr_combined <- bind_rows(
+  sample_amr_pre %>% mutate(experiment_phase = "pre-ABX"),
+  sample_amr_post %>% mutate(experiment_phase = "post-ABX"))
+
+ sample_amr_combined %>% 
+   ggplot(aes(x = experiment_phase, y = AMR, color = experimental_group, fill = experimental_group)) +
+   geom_jitter(width = 0.2, alpha = 0.7, show.legend = FALSE, size = 0.5) +
+   geom_boxplot(width = 0.5, alpha = 0.5, outlier.shape = NA, show.legend = FALSE) +
+   theme_classic() +
+   theme(
+ 	axis.text = element_text(size = 10), 
+ 	strip.background = element_blank(), 
+ 	axis.title.y = element_text(size = 12, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+ 	axis.title.x = element_blank()
+   ) +
+   
+   stat_compare_means(method = "kruskal.test", paired = FALSE, p.adjust.method = "BH", label = "p.signif" ) + 
+   
+   labs(y = "AMR")
 ```
+
+
 
