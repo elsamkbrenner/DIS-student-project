@@ -518,13 +518,6 @@ pre_abx_formatted <- pre_abx_formatted %>%
 
 ```
 
-#Pre-Treatment Comparison (By Temp) Stats
-```{r}
-
-```
-
-
-
 # Pre-Treatment Comparison (By Group) 
 ```{r}
 pre_abx <- left_join(alpha_div,sample_metadata, by = c("sample" = "DNA_datasets"))
@@ -566,9 +559,41 @@ pre_abx_formatted <- pre_abx_formatted %>%
   ) +
   theme_classic()
 ```
-#Pre-Treatment Comparison (By Group) Stats
+#Pre-Treatment Comparison Stats
 ```{r}
+# Shapiro-Wilk Test for Normality
 
+LAHT_A <- filter(pre_abx_filtered, experimental_group == 'LAHT_A')
+LAHT_B <- filter(pre_abx_filtered, experimental_group == 'LAHT_B')
+
+#Neutral
+shapiro_test_Neutral_A <- shapiro.test(LAHT_A$neutral)
+print(paste("Shapiro-Wilk test for Neutral A: p-value =", shapiro_test_Neutral_A$p.value))
+shapiro_test_Neutral_B <- shapiro.test(LAHT_B$neutral)
+print(paste("Shapiro-Wilk test for Neutral B: p-value =", shapiro_test_Neutral_B$p.value))
+
+#Phylogenetic Diversity
+shapiro_test_Neutral_A <- shapiro.test(LAHT_A$phylogenetic)
+print(paste("Shapiro-Wilk test for Phylogenetic A: p-value =", shapiro_test_Neutral_A$p.value))
+shapiro_test_Neutral_B <- shapiro.test(LAHT_B$phylogenetic)
+print(paste("Shapiro-Wilk test for Phylogenetic B: p-value =", shapiro_test_Neutral_B$p.value))
+
+#Richness
+shapiro_test_Neutral_A <- shapiro.test(LAHT_A$richness)
+print(paste("Shapiro-Wilk test for Richness A: p-value =", shapiro_test_Neutral_A$p.value))
+shapiro_test_Neutral_B <- shapiro.test(LAHT_B$richness)
+print(paste("Shapiro-Wilk test for Richness B: p-value =", shapiro_test_Neutral_B$p.value))
+
+# Wilcoxon Test
+
+#Neutral
+wilcox.test(neutral ~ experimental_group, data = pre_abx_filtered)
+
+#Phylogenetic Diversity
+wilcox.test(phylogenetic ~ experimental_group, data = pre_abx_filtered)
+
+#Richness
+wilcox.test(richness ~ experimental_group, data = pre_abx_filtered)
 ```
 
 #Post-Treatment Comparison (Overall)
@@ -649,4 +674,89 @@ ggplot(data=treatments_combined, aes(
     y = "Alpha Diversity",
   ) +
   theme_classic()
+```
+
+#Post-Treatment Temperature Adapted Comparison
+```{r}
+post_abx <- left_join(alpha_div,sample_metadata, by = c("sample" = "DNA_datasets"))
+post_abx_filtered <- filter(post_abx, sampling_date >= as.Date('2025-08-30'))
+post_abx_formatted <- pivot_longer(post_abx_filtered, cols = c(richness, neutral, phylogenetic), names_to = 'alpha_div', values_to = 'alpha_div_values')
+  
+  ggplot(data=pre_abx_formatted, aes(
+    y = alpha_div_values,
+    x = experimental_group,
+    group = experimental_group,
+    color = experimental_group,
+    fill = experimental_group
+
+  )) +
+
+  geom_boxplot(alpha = 0.5, outlier.shape = NA) +
+  geom_jitter(width = 0.2, alpha = 0.5) +
+
+    facet_wrap(
+    ~ alpha_div,
+    scales = "free_y",
+    ncol = 3,
+    labeller = as_labeller(c(
+      richness = "Richness",
+      neutral = "Neutral",
+      phylogenetic = "Phylogenetic Diversity"
+
+    ))) +  
+
+  stat_compare_means( method = "wilcox.test", paired = FALSE, p.adjust.method = "BH", label = "p.signif" ) +
+  scale_x_discrete(
+
+    labels = c(
+    "LAHT_A" = "10C",
+    "LAHT_B" = "20C"
+
+  )) + 
+
+  labs(
+    title = "Post-Treatment Alpha Diversity Across Groups",
+    x = "Temperature (C)",
+    y = "Alpha Diversity",
+  ) +
+
+  theme_classic()
+ 
+```
+
+#Post-Treatment Comparison Stats
+```{r}
+# Shapiro-Wilk Test for Normality
+
+LAHT_A <- filter(post_abx_filtered, experimental_group == 'LAHT_A')
+LAHT_B <- filter(post_abx_filtered, experimental_group == 'LAHT_B')
+
+#Neutral
+shapiro_test_Neutral_A <- shapiro.test(LAHT_A$neutral)
+print(paste("Shapiro-Wilk test for Neutral A: p-value =", shapiro_test_Neutral_A$p.value))
+shapiro_test_Neutral_B <- shapiro.test(LAHT_B$neutral)
+print(paste("Shapiro-Wilk test for Neutral B: p-value =", shapiro_test_Neutral_B$p.value))
+
+#Phylogenetic Diversity
+shapiro_test_Neutral_A <- shapiro.test(LAHT_A$phylogenetic)
+print(paste("Shapiro-Wilk test for Phylogenetic A: p-value =", shapiro_test_Neutral_A$p.value))
+shapiro_test_Neutral_B <- shapiro.test(LAHT_B$phylogenetic)
+print(paste("Shapiro-Wilk test for Phylogenetic B: p-value =", shapiro_test_Neutral_B$p.value))
+
+#Richness
+shapiro_test_Neutral_A <- shapiro.test(LAHT_A$richness)
+print(paste("Shapiro-Wilk test for Richness A: p-value =", shapiro_test_Neutral_A$p.value))
+shapiro_test_Neutral_B <- shapiro.test(LAHT_B$richness)
+print(paste("Shapiro-Wilk test for Richness B: p-value =", shapiro_test_Neutral_B$p.value))
+
+# Wilcoxon Test
+
+#Neutral
+wilcox.test(neutral ~ experimental_group, data = post_abx_filtered)
+
+#Phylogenetic Diversity
+wilcox.test(phylogenetic ~ experimental_group, data = post_abx_filtered)
+
+#Richness
+wilcox.test(richness ~ experimental_group, data = post_abx_filtered)
 ```
