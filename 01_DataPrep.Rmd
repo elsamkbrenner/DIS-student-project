@@ -184,7 +184,7 @@ phylo_samples <- sample_metadata %>%
   sample_data() #convert to phyloseq sample_data object
 phylo_genome <- genome_counts_filt %>% 
   column_to_rownames("genome") %>% 
-  otu_table(., taxa_are_rows = TRUE)
+  phyloseq::otu_table(., taxa_are_rows = TRUE)
 phylo_taxonomy <- genome_metadata %>%
   column_to_rownames("genome") %>% 
   as.matrix() %>% 
