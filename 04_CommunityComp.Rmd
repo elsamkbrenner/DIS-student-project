@@ -474,6 +474,218 @@ ggplot(plot_data, aes(x = reorder(taxon, logFC), y = logFC, fill = phylum)) +
     fill = "Phylum"
   )
 ```
+#Comparing Relative Abundance Pre/Post Treatment
+```{r}
+# set water temp as a factor, not a number, within physeq
+sample_data(physeq_genome)$experimental_group <- factor(
+  sample_data(physeq_genome)$experimental_group,
+  levels = c('LAHT_A','LAHT_B')
+)
+```
+
+```{r}
+
+#Split Data into Pre/Post Treatment
+
+pre_physeq_genome <- subset_samples(physeq_genome,sampling_date < as.Date("2025-08-30"))
+post_physeq_genome <- subset_samples(physeq_genome,sampling_date > as.Date("2025-08-30"))
+
+pre_fit_mag_cabinet <- ancombc2(
+  data = pre_physeq_genome,
+  fix_formula = "experimental_group",
+  group = "experimental_group",
+  global = FALSE,
+  pairwise = FALSE,
+  p_adj_method = "BH",
+  lib_cut = 0,
+  struc_zero = TRUE,
+  alpha = 0.05
+)
+
+post_fit_mag_cabinet <- ancombc2(
+  data = post_physeq_genome,
+  fix_formula = "experimental_group",
+  group = "experimental_group",
+  global = FALSE,
+  pairwise = FALSE,
+  p_adj_method = "BH",
+  lib_cut = 0,
+  struc_zero = TRUE,
+  alpha = 0.05
+)
+
+pre_mag_cabinet <- pre_fit_mag_cabinet$res
+post_mag_cabinet <- post_fit_mag_cabinet$res
+
+save(
+  pre_fit_mag_water_temp,
+  post_fit_mag_water_temp,
+  pre_mag_water_temp,
+  post_mag_water_temp,
+  file = "data/ancombc.Rdata"
+)
+```
+
+#Pre-Treatment Relative Abundance Calculations
+```{r}
+mag_enriched_B <- pre_mag_cabinet %>%
+  filter(lfc_experimental_groupLAHT_B > 0) %>%
+  arrange(desc(lfc_experimental_groupLAHT_B)) %>%
+  head(n = 20)
+
+mag_enriched_B %>%
+  nrow() %>%
+  cat()
+
+mag_enriched_B %>%
+  tt()
+```
+```{r}
+mag_enriched_A <- pre_mag_cabinet %>%
+  filter(lfc_experimental_groupLAHT_B < 0) %>%
+  arrange(desc(lfc_experimental_groupLAHT_B)) %>%
+  head(n = 20)
+
+mag_enriched_A %>%
+  nrow() %>%
+  cat()
+
+mag_enriched_A %>%
+  tt()
+```
+
+
+```{r}
+## Plotting
+taxonomy <- genome_metadata %>%
+  distinct(genome, phylum) %>%
+  rename(taxon = genome)
+
+colors_alphabetic <- read_tsv("https://raw.githubusercontent.com/earthhologenome/EHI_taxonomy_colour/main/ehi_phylum_colors.tsv") %>%
+  mutate(phylum = str_replace(phylum, "[dpcofgs]__", "")) %>%
+  right_join(taxonomy %>% distinct(phylum), by = "phylum") %>%
+  select(phylum, colors) %>%
+  mutate(colors = str_c(colors, "80")) %>%
+  distinct() %>%
+  arrange(phylum)
+```
+
+#Pre-Treatment Relative Abundance Plot
+```{r}
+plot_data <- pre_mag_cabinet %>%
+  filter(q_experimental_groupLAHT_B < 0.05) %>%
+  mutate(
+    logFC = lfc_experimental_groupLAHT_B,
+    enriched = case_when(
+      logFC > 0 ~ "20C",
+      logFC < 0 ~ "10C",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  left_join(genome_metadata, by = join_by(taxon == genome))
+```
+```{r}
+tax_color <- plot_data %>%
+  distinct(phylum) %>%
+  left_join(colors_alphabetic, by = "phylum") %>%
+  arrange(phylum) %>%
+  pull(colors, name = phylum)
+```
+```{r}
+ggplot(plot_data, aes(x = reorder(taxon, logFC), y = logFC, fill = phylum)) +
+  geom_col() +
+  scale_fill_manual(values = tax_color, na.value = "grey70") +
+  coord_flip() +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 6),
+    axis.title = element_text(size = 14, face = "bold"),
+    legend.text = element_text(size = 12),
+    legend.title = element_text(size = 14, face = "bold"),
+    legend.position = "right",
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5)
+  ) +
+  labs(
+    title = "Enriched in 10C (- LFC) vs enriched in 20C (+ LFC)",
+    x = "MAGs",
+    y = "Log-Fold Change",
+    fill = "Phylum"
+  )
+```
+#Post-Treatment Relative Abundance Calculations
+```{r}
+mag_enriched_B <- post_mag_cabinet %>%
+  filter(lfc_experimental_groupLAHT_B > 0) %>%
+  arrange(desc(lfc_experimental_groupLAHT_B)) %>%
+  head(n = 20)
+
+mag_enriched_B %>%
+  nrow() %>%
+  cat()
+
+mag_enriched_B %>%
+  tt()
+```
+
+```{r}
+mag_enriched_A <- pre_mag_cabinet %>%
+  filter(lfc_experimental_groupLAHT_B < 0) %>%
+  arrange(desc(lfc_experimental_groupLAHT_B)) %>%
+  head(n = 20)
+
+mag_enriched_A %>%
+  nrow() %>%
+  cat()
+
+mag_enriched_A %>%
+  tt()
+```
+
+#Post-Treatment Relative Abundance Plot
+```{r}
+## Plotting
+plot_data <- post_mag_cabinet %>%
+  filter(q_experimental_groupLAHT_B < 0.05) %>%
+  mutate(
+    logFC = lfc_experimental_groupLAHT_B,
+    enriched = case_when(
+      logFC > 0 ~ "20C",
+      logFC < 0 ~ "10C",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  left_join(genome_metadata, by = join_by(taxon == genome))
+```
+```{r}
+tax_color <- plot_data %>%
+  distinct(phylum) %>%
+  left_join(colors_alphabetic, by = "phylum") %>%
+  arrange(phylum) %>%
+  pull(colors, name = phylum)
+```
+```{r}
+ggplot(plot_data, aes(x = reorder(taxon, logFC), y = logFC, fill = phylum)) +
+  geom_col() +
+  scale_fill_manual(values = tax_color, na.value = "grey70") +
+  coord_flip() +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 6),
+    axis.title = element_text(size = 14, face = "bold"),
+    legend.text = element_text(size = 12),
+    legend.title = element_text(size = 14, face = "bold"),
+    legend.position = "right",
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5)
+  ) +
+  labs(
+    title = "Enriched in 10C (- LFC) vs enriched in 20C (+ LFC)",
+    x = "MAGs",
+    y = "Log-Fold Change",
+    fill = "Phylum"
+  )
+```
 
 # Pre-Treatment Comparison (By Temp)
 ```{r}
@@ -504,6 +716,7 @@ pre_abx_formatted <- pre_abx_formatted %>%
     ))
     
   ) +
+  stat_compare_means( method = "wilcox.test", paired = FALSE, p.adjust.method = "BH", label = "p.signif" ) +
   scale_x_discrete(
     labels = c(
     "LAHT_A" = "10C",
@@ -547,6 +760,8 @@ pre_abx_formatted <- pre_abx_formatted %>%
     ))
     
   ) +
+    
+  stat_compare_means( method = "wilcox.test", paired = FALSE, p.adjust.method = "BH", label = "p.signif" ) +
   scale_x_discrete(
     labels = c(
     "LAHT_A" = "10C",
@@ -559,6 +774,7 @@ pre_abx_formatted <- pre_abx_formatted %>%
   ) +
   theme_classic()
 ```
+
 #Pre-Treatment Comparison Stats
 ```{r}
 # Shapiro-Wilk Test for Normality
@@ -627,6 +843,16 @@ ggplot(data=treatments_combined, aes(
     ))
     
   ) +
+  
+  stat_compare_means( method = "wilcox.test", paired = FALSE, p.adjust.method = "BH", label = "p.signif" ) +
+  scale_x_discrete(
+
+    labels = c(
+    "LAHT_A" = "10C",
+    "LAHT_B" = "20C"
+
+  )) +
+  
   labs(
     title = "Alpha Diversity Comparsion Pre and Post Antibiotic Treatment",
     x = "Treatment Status",
@@ -668,6 +894,15 @@ ggplot(data=treatments_combined, aes(
       phylogenetic = "Phylogenetic Diversity"
     ))) + 
     
+  stat_compare_means( method = "wilcox.test", paired = FALSE, p.adjust.method = "BH", label = "p.signif" ) +
+  scale_x_discrete(
+
+    labels = c(
+    "LAHT_A" = "10C",
+    "LAHT_B" = "20C"
+
+  )) +
+  
   labs(
     title = "Alpha Diversity Comparsion Pre and Post Antibiotic Treatment",
     x = "Treatment Status",
@@ -721,7 +956,6 @@ post_abx_formatted <- pivot_longer(post_abx_filtered, cols = c(richness, neutral
   ) +
 
   theme_classic()
- 
 ```
 
 #Post-Treatment Comparison Stats
