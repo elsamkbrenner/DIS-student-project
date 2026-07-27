@@ -364,6 +364,9 @@ sample_amr_combined <- bind_rows(
  	axis.title.y = element_text(size = 12, margin = margin(t = 0, r = 20, b = 0, l = 0)),
  	axis.title.x = element_blank()
    ) +
+   
+   stat_compare_means(method = "wilcox.test", paired = FALSE, p.adjust.method = "BH", label = "p.signif" ) + 
+   
    labs(y = "AMR")
 ```
 ```{r}
